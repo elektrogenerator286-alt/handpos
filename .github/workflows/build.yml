@@ -27,10 +27,13 @@ jobs:
         if: always()
         shell: bash
         run: |
-          J=$(find ~/.gradle .gradle -name "minecraft-merged*.jar" 2>/dev/null | head -1)
-          echo "jar=$J" > /tmp/info.txt
-          for C in net.minecraft.client.render.item.HeldItemRenderer net.minecraft.client.render.GameRenderer; do
-            javap -p -cp "$J" $C >> /tmp/info.txt 2>&1 || true
+          : > /tmp/info.txt
+          for J in $(find ~/.gradle .gradle -name "*.jar" 2>/dev/null); do
+            if unzip -l "$J" 2>/dev/null | grep -q "client/render/item/HeldItemRenderer.class\|client/render/HeldItemRenderer.class"; then
+              echo "JAR $J" >> /tmp/info.txt
+              C=$(unzip -l "$J" | grep -o "net/minecraft/client/render/[a-z/]*HeldItemRenderer.class" | head -1 | sed 's/.class//;s#/#.#g')
+              javap -p -cp "$J" $C >> /tmp/info.txt 2>&1 || true
+            fi
           done
           git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
           git checkout --orphan info-log; git rm -rf --quiet . || true
