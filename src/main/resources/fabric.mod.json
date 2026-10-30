@@ -3,8 +3,10 @@
 	"id": "handpos",
 	"version": "${version}",
 	"name": "Hand Pos",
+	"description": "Change position, rotation and size of items in your hands (first person only).",
 	"license": "MIT",
 	"environment": "client",
 	"entrypoints": { "client": [ "com.example.handpos.HandPosClient" ] },
+	"mixins": [ "handpos.mixins.json" ],
 	"depends": { "fabricloader": ">=0.19.3", "minecraft": "=1.21.11", "java": ">=21", "fabric-api": ">=0.141.3" }
 }
