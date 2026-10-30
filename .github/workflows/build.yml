@@ -1,0 +1,57 @@
+name: Build mod
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.5.1
+      - name: Build
+        shell: bash
+        run: gradle build --no-daemon 2>&1 | tee build.log
+      - name: Dump API info
+        if: always()
+        shell: bash
+        run: |
+          J=$(find ~/.gradle .gradle -name "minecraft-merged*.jar" 2>/dev/null | head -1)
+          echo "jar=$J" > /tmp/info.txt
+          for C in net.minecraft.client.render.item.HeldItemRenderer net.minecraft.client.render.GameRenderer; do
+            javap -p -cp "$J" $C >> /tmp/info.txt 2>&1 || true
+          done
+          git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
+          git checkout --orphan info-log; git rm -rf --quiet . || true
+          cp /tmp/info.txt info.txt; git add info.txt; git commit -q -m info; git push -f origin info-log
+      - name: Save build log on failure
+        if: failure()
+        shell: bash
+        run: |
+          cp build.log /tmp/build.log
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout --orphan build-log
+          git rm -rf --quiet . || true
+          cp /tmp/build.log build.log
+          git add build.log
+          git commit -q -m "build log"
+          git push -f origin build-log
+      - name: Publish jar to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" build/libs/*.jar \
+            --title "Hand Pos build ${{ github.run_number }}" \
+            --notes "Fabric 1.21.11. Put the .jar into your mods folder (with Fabric API)."
